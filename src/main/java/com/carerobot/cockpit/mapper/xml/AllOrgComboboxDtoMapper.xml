@@ -1,0 +1,660 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.carerobot.cockpit.mapper.AllOrgComboboxDtoMapper">
+
+    <select id="selectOccupancyRate" resultType="com.carerobot.cockpit.dto.AllOrgComboboxDto">
+        SELECT
+        t4.`il住户人数` 'ILTotal',
+        t1.il+t2.il 'ILUnits',
+        t3.il 'ILSRoom',
+        (t1.il+t2.il)/t3.il 'ILOccupancy',
+        t4.`al住户人数` 'ALTotal',
+        t1.al+t2.al 'ALUnits',
+        t3.al 'ALSRoom',
+        (t1.al+t2.al)/t3.al 'ALOccupancy',
+        t1.total+t2.total 'TotalUnits',
+        t4.`il住户人数`+t4.`al住户人数` 'TotalResidents',
+        (t1.total+t2.total)/(t3.`il`+t3.`al`) 'TotalOccupancy',
+        t5.Il 'incomIl',
+        t5.Al 'incomAl',
+        t5.Restaurant 'incomRestaurant',
+        t5.Other 'incomOther',
+        t5.Il+t5.Al+t5.Restaurant+t5.Other 'Totalincom'
+        FROM (
+        SELECT
+        t1.il-t2.il  il,
+        t1.al-t2.al  al,
+        t1.il+t1.al-t2.il-t2.al Total
+        FROM
+        (
+        SELECT
+        COUNT(  case when v.Area = 'IL' and r.BedStatus != '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 1
+        when v.Area = 'IL' and r.BedStatus = '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 2
+        end) il,
+        COUNT(  case when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus != '包床' then 1
+        when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus = '包床' then 2
+        end) al
+        FROM view_elder_detail v ,room_bedinfo r where v.Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And v.OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        AND LiveDate &gt;= #{startDATE} AND LiveDate &lt;= #{endDATE} AND v.BedInfoBedNo = r.BedNo
+        ) t1,
+        (
+        SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) il,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) al,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 AND LeftTime &gt;= #{startDATE} AND LeftTime &lt;= #{endDATE}
+        ) t2
+        ) t1,
+        (SELECT
+        t1.iltotal il,
+        t1.altotal+r.gcb al,
+        t1.total+r.gcb total
+        from
+        (SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) iltotal,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) altotal,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1   AND EnterTime &lt;= #{startDATE} )t1,
+        (SELECT count(case when r.Id = a.Id then 1 end) gcb
+        from (SELECT Id from archives_info)a ,
+        (SELECT ArchivesId Id from room_bedinfo where NurseArea='1' and BedStatus='包床' and OrgId = 2)r
+        )r)t2,
+        (SELECT
+        COUNT(case when NurseArea = '2' then 1 end) 'il',
+        COUNT(case when NurseArea = '1' then 1 end) 'al',
+        COUNT(BedNo) Total
+        FROM room_bedinfo WHERE 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>)t3,
+        (
+        SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) 'il住户人数',
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) 'al住户人数',
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) Total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE 1=1
+        <if test='list != null and list.size() > 0'>
+        And OrgId in
+        <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+            #{item}
+        </foreach>
+    </if>
+        ) total where 1=1 and EnterTime &lt;= #{endDATE})t4,
+        (select incom_il Il,incom_al Al,incom_restaurant Restaurant,incom_other Other
+        from view_month_bill_op where `month` = #{month}
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        )t5
+
+
+
+
+
+    </select>
+    <select id="selectResidents" resultType="com.carerobot.cockpit.dto.ResidentsDto">
+        SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) 'ILTotal',
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) 'ALTotal'
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 and EnterTime &lt;= #{endDATE}
+    </select>
+
+
+    <select id="selectILTotal" resultType="java.lang.Integer">
+        SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)
+         FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 and EnterTime &lt;= #{endDATE}
+    </select>
+
+    <select id="selectALTotal" resultType="java.lang.Integer">
+        SELECT
+         COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end)
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 and EnterTime &lt;= #{endDATE}
+    </select>
+
+    <select id="selectTotalResidents" resultType="java.lang.Integer">
+        SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) Total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 and EnterTime &lt;= #{endDATE}
+    </select>
+
+    <select id="selectILUnits" resultType="java.lang.Integer">
+        SELECT
+        t1.il+t2.il
+        from
+        (
+        SELECT
+        t1.il-t2.il  il
+        FROM
+        (
+        SELECT
+        COUNT(  case when v.Area = 'IL' and r.BedStatus != '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 1
+        when v.Area = 'IL' and r.BedStatus = '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 2
+        end) il
+        FROM view_elder_detail v ,room_bedinfo r where v.Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And v.OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        AND LiveDate &gt;= #{startDATE} AND LiveDate &lt;= #{endDATE} AND v.BedInfoBedNo = r.BedNo
+        ) t1,
+        (
+        SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) il
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 AND LeftTime &gt;= #{startDATE} AND LeftTime &lt;= #{endDATE}
+        ) t2
+        ) t1,
+        (
+        SELECT
+        t1.iltotal il
+        from
+        (SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) iltotal
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1   AND EnterTime &lt;= #{startDATE} )t1,
+        (SELECT count(case when r.Id = a.Id then 1 end) gcb
+        from (SELECT Id from archives_info)a ,
+        (SELECT ArchivesId Id from room_bedinfo where NurseArea='1' and BedStatus='包床' and OrgId = 2)r
+        )r
+        )t2
+    </select>
+
+    <select id="selectALUnits" resultType="java.lang.Integer">
+        SELECT
+        t1.al+t2.al
+        FROM
+        (
+        SELECT
+        t1.al-t2.al  al
+        FROM(
+        SELECT
+        COUNT(  case when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus != '包床' then 1
+        when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus = '包床' then 2
+        end) al
+        FROM view_elder_detail v ,room_bedinfo r where v.Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And v.OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        AND LiveDate &gt;= #{startDATE} AND LiveDate &lt;= #{endDATE} AND v.BedInfoBedNo = r.BedNo
+        ) t1,
+        (
+        SELECT
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) al
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 AND LeftTime &gt;= #{startDATE} AND LeftTime &lt;= #{endDATE}
+        ) t2
+        ) t1,
+        (SELECT
+        t1.altotal+r.gcb al
+        from
+        (SELECT
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) altotal
+         FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1   AND EnterTime &lt;= #{startDATE} )t1,
+        (SELECT count(case when r.Id = a.Id then 1 end) gcb
+        from (SELECT Id from archives_info)a ,
+        (SELECT ArchivesId Id from room_bedinfo where NurseArea='1' and BedStatus='包床' and OrgId = 2)r
+        )r)t2
+    </select>
+
+    <select id="selectTotalUnits" resultType="java.lang.Integer">
+        SELECT
+        t1.total+t2.total
+        FROM
+        (
+        SELECT
+        t1.il+t1.al-t2.il-t2.al Total
+        FROM
+        (
+        SELECT
+        COUNT(  case when v.Area = 'IL' and r.BedStatus != '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 1
+        when v.Area = 'IL' and r.BedStatus = '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 2
+        end) il,
+        COUNT(  case when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus != '包床' then 1
+        when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus = '包床' then 2
+        end) al
+        FROM view_elder_detail v ,room_bedinfo r where v.Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And v.OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        AND LiveDate &gt;= #{startDATE} AND LiveDate &lt;= #{endDATE} AND v.BedInfoBedNo = r.BedNo
+        ) t1,
+        (
+        SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) il,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) al,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 AND LeftTime &gt;= #{startDATE} AND LeftTime &lt;= #{endDATE}
+        ) t2
+        ) t1,
+        (
+        SELECT
+        t1.total+r.gcb total
+        from
+        (
+        SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1   AND EnterTime &lt;= #{startDATE}
+        )t1,
+        (SELECT count(case when r.Id = a.Id then 1 end) gcb
+        from (SELECT Id from archives_info)a ,
+        (SELECT ArchivesId Id from room_bedinfo where NurseArea='1' and BedStatus='包床' and OrgId = 2)r
+        )r
+        )t2
+    </select>
+
+    <select id="selectILSRoom" resultType="java.lang.Integer">
+        SELECT
+        COUNT(case when NurseArea = '2' then 1 end) 'il'
+        FROM room_bedinfo WHERE 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="selectALSRoom" resultType="java.lang.Integer">
+        SELECT
+        COUNT(case when NurseArea = '1' then 1 end) 'al'
+        FROM room_bedinfo WHERE 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="selectILOccupancy" resultType="java.math.BigDecimal">
+        SELECT
+        (t1.il+t2.il)/t3.il
+        FROM (
+        SELECT
+        t1.il-t2.il  il
+        FROM
+        (
+        SELECT
+        COUNT(  case when v.Area = 'IL' and r.BedStatus != '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 1
+        when v.Area = 'IL' and r.BedStatus = '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 2
+        end) il
+        FROM view_elder_detail v ,room_bedinfo r where v.Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And v.OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        AND LiveDate &gt;= #{startDATE} AND LiveDate &lt;= #{endDATE} AND v.BedInfoBedNo = r.BedNo
+        ) t1,
+        (
+        SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) il
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 AND LeftTime &gt;= #{startDATE} AND LeftTime &lt;= #{endDATE}
+        ) t2
+        ) t1,
+        (SELECT
+        t1.iltotal il
+        from
+        (SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) iltotal,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) altotal,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1   AND EnterTime &lt;= #{startDATE} )t1,
+        (SELECT count(case when r.Id = a.Id then 1 end) gcb
+        from (SELECT Id from archives_info)a ,
+        (SELECT ArchivesId Id from room_bedinfo where NurseArea='1' and BedStatus='包床' and OrgId = 2)r
+        )r)t2,
+        (SELECT
+        COUNT(case when NurseArea = '2' then 1 end) 'il'
+        FROM room_bedinfo WHERE 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>)t3
+    </select>
+
+    <select id="selectALOccupancy" resultType="java.math.BigDecimal">
+        SELECT
+
+        (t1.al+t2.al)/t3.al 'ALOccupancy'
+
+        FROM (
+        SELECT
+        t1.al-t2.al  al
+        FROM
+        (
+        SELECT
+        COUNT(  case when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus != '包床' then 1
+        when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus = '包床' then 2
+        end) al
+        FROM view_elder_detail v ,room_bedinfo r where v.Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And v.OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        AND LiveDate &gt;= #{startDATE} AND LiveDate &lt;= #{endDATE} AND v.BedInfoBedNo = r.BedNo
+        ) t1,
+        (
+        SELECT
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) al
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 AND LeftTime &gt;= #{startDATE} AND LeftTime &lt;= #{endDATE}
+        ) t2
+        ) t1,
+        (SELECT
+        t1.altotal+r.gcb al
+        from
+        (SELECT
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) altotal
+         FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1   AND EnterTime &lt;= #{startDATE} )t1,
+        (SELECT count(case when r.Id = a.Id then 1 end) gcb
+        from (SELECT Id from archives_info)a ,
+        (SELECT ArchivesId Id from room_bedinfo where NurseArea='1' and BedStatus='包床' and OrgId = 2)r
+        )r)t2,
+        (SELECT
+        COUNT(case when NurseArea = '1' then 1 end) 'al'
+        FROM room_bedinfo WHERE 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>)t3
+    </select>
+
+    <select id="selectTotalOccupancy" resultType="java.math.BigDecimal">
+        SELECT
+        (t1.total+t2.total)/(t3.`il`+t3.`al`) 'TotalOccupancy'
+        FROM (
+        SELECT
+        t1.il+t1.al-t2.il-t2.al total
+        FROM
+        (
+        SELECT
+        COUNT(  case when v.Area = 'IL' and r.BedStatus != '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 1
+        when v.Area = 'IL' and r.BedStatus = '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 2
+        end) il,
+        COUNT(  case when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus != '包床' then 1
+        when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus = '包床' then 2
+        end) al
+        FROM view_elder_detail v ,room_bedinfo r where v.Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And v.OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        AND LiveDate &gt;= #{startDATE} AND LiveDate &lt;= #{endDATE} AND v.BedInfoBedNo = r.BedNo
+        ) t1,
+        (
+        SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) il,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) al
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 AND LeftTime &gt;= #{startDATE} AND LeftTime &lt;= #{endDATE}
+        ) t2
+        ) t1,
+        (SELECT
+        t1.total+r.gcb total
+        from
+        (SELECT
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1   AND EnterTime &lt;= #{startDATE} )t1,
+        (SELECT count(case when r.Id = a.Id then 1 end) gcb
+        from (SELECT Id from archives_info)a ,
+        (SELECT ArchivesId Id from room_bedinfo where NurseArea='1' and BedStatus='包床' and OrgId = 2)r
+        )r)t2,
+        (SELECT
+        COUNT(case when NurseArea = '2' then 1 end) 'il',
+        COUNT(case when NurseArea = '1' then 1 end) 'al'
+        FROM room_bedinfo WHERE 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>)t3
+    </select>
+
+    <select id="selectIncomIl" resultType="java.math.BigDecimal">
+        select incom_il
+        from view_month_bill_op where `month` = #{month}
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="selectIncomAl" resultType="java.math.BigDecimal">
+        select incom_al
+        from view_month_bill_op where `month` = #{month}
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="selectIncomRestaurant" resultType="java.lang.Integer">
+        select incom_restaurant
+        from view_month_bill_op where `month` = #{month}
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="selectIncomOther" resultType="java.math.BigDecimal">
+        select incom_other Other
+        from view_month_bill_op where `month` = #{month}
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="selectTotalincom" resultType="java.math.BigDecimal">
+        select incom_il + incom_al + incom_restaurant + incom_other Other
+        from view_month_bill_op where `month` = #{month}
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+
+</mapper>

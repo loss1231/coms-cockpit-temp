@@ -1,0 +1,78 @@
+server:
+  port: 8084
+spring:
+  datasource:
+    db1:
+      url: jdbc:mysql://rm-uf6e68msur97jt733po.mysql.rds.aliyuncs.com:3306/coms-cockpit?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8
+      username: comscockpit
+      password: H7bciFr5Yq2Se8y
+      type: com.alibaba.druid.pool.DruidDataSource
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+    db2:
+      url: jdbc:mysql://rm-uf6e68msur97jt733po.mysql.rds.aliyuncs.com:3306/coms-routine?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8
+      username: comsroutine
+      password: H7bciFr5Yq2Se8y
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+    db3:
+      url: jdbc:mysql://rm-uf6e68msur97jt733po.mysql.rds.aliyuncs.com:3306/coms-crm?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8
+      username: comscrm
+      password: H7bciFr5Yq2Se8y
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+    db4:
+      url: jdbc:mysql://rm-uf6e68msur97jt733po.mysql.rds.aliyuncs.com:3306/coms-space?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8
+      username: comsspace
+      password: H7bciFr5Yq2Se8y
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+    db5:
+      url: jdbc:mysql://rm-uf6e68msur97jt733po.mysql.rds.aliyuncs.com:3306/coms-file?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8
+      username: comsfile
+      password: H7bciFr5Yq2Se8y
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+    db6:
+      url: jdbc:mysql://rm-uf6e68msur97jt733po.mysql.rds.aliyuncs.com:3306/coms-bill?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8
+      username: comsbill
+      password: H7bciFr5Yq2Se8y
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+    db7:
+      url: jdbc:mysql://rm-uf6e68msur97jt733po.mysql.rds.aliyuncs.com:3306/coms-todo?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8
+      username: comstodo
+      password: H7bciFr5Yq2Se8y
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+    db8:
+      url: jdbc:mysql://rm-uf6e68msur97jt733po.mysql.rds.aliyuncs.com:3306/coms-routine?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8
+      username: comsroutine
+      password: H7bciFr5Yq2Se8y
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  #  config-location: classpath:config.xml
+  type-aliases-package: com.carerobot.cockpit.model
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    update-strategy: IGNORED
+    insert-strategy: IGNORED
+
+system:
+  url: https://test-carerobot.sungin.com.cn/
+  carebox: https://test.api.carebox.sungin.com.cn/
+#xxl:
+#  job:
+#    admin:
+#      addresses: http://1.116.201.94:8089/xxl-job-admin
+#    executor:
+#      appname: coms-cockpit
+#      ip:
+#      port: 9999
+#      logpath: /data/applogs/xxl-job/jobhandler
+#      logretentiondays: 180
+#    accessToken:
+

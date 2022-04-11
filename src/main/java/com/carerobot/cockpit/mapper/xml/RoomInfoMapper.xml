@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.carerobot.cockpit.mapper.RoomInfoMapper">
+    <update id="createNewRoomTable" parameterType="String">
+        CREATE TABLE ${tableName} (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        ArchivesId int,
+        RoomNo varchar(50) NOT NULL,
+        HouseNo varchar(50),
+        HouseLayoutId int,
+        BedCount int,
+        FloorInfoId int,
+        BuildNo varchar(50),
+        PRIMARY KEY (id))
+    </update>
+
+    <insert id="batchInsertRoom" parameterType="java.util.List">
+        insert into ${tableName} (
+        ArchivesId,RoomNo,HouseNo,HouseLayoutId,BedCount,FloorInfoId,BuildNo)
+        values
+        <foreach collection="list" item="roomJsonDtos" index="index" separator=",">
+            (
+            #{roomJsonDtos.ArchivesId,jdbcType=INTEGER},
+            #{roomJsonDtos.RoomNo,jdbcType=VARCHAR},
+            #{roomJsonDtos.HouseNo,jdbcType=VARCHAR},
+            #{roomJsonDtos.HouseLayoutId,jdbcType=INTEGER},
+            #{roomJsonDtos.BedCount,jdbcType=INTEGER},
+            #{roomJsonDtos.FloorInfoId,jdbcType=INTEGER},
+            #{roomJsonDtos.BuildNo,jdbcType=VARCHAR}
+            )
+        </foreach>
+    </insert>
+
+    <update id="dropRoomTable">
+        DROP TABLE IF EXISTS ${tableName}
+    </update>
+
+    <resultMap id="BeginningUnitMap" type="com.carerobot.cockpit.dto.OccupancyRateDto" autoMapping="true">
+        <result column="items" property="itemName"/>
+        <result column="LT" property="longLive"/>
+        <result column="ST" property="shortLive"/>
+        <result column="Guest" property="guest"/>
+        <result column="Ttial" property="tryLive"/>
+        <result column="IL" property="ILTotal"/>
+        <result column="LEVELI" property="careLevel1"/>
+        <result column="LEVELII" property="careLevel2"/>
+        <result column="LEVELIII" property="careLevel3"/>
+        <result column="AL" property="ALTotal"/>
+        <result column="Total" property="total"/>
+    </resultMap>
+
+    <select id="beginningUnitMap" resultMap="BeginningUnitMap" resultType="com.carerobot.cockpit.dto.OccupancyRateDto">
+        SELECT ${itemName} as items,
+        COUNT(case when IsLongOrShort = 1 then 1 end) LT,
+        COUNT(case when IsLongOrShort = 2 then 1 end) ST,
+        COUNT(case when IsLongOrShort = 3 then 1 end) Ttial,
+        COUNT(case when IsLongOrShort = 4 then 1 end) Guest,
+        COUNT(case when AreaId = 2 then 1 end) IL,
+        COUNT(case when NurseLevelId = 1 then 1 end) LEVELI,
+        COUNT(case when NurseLevelId = 2 then 1 end) LEVELII,
+        COUNT(case when NurseLevelId = 3 then 1 end) LEVELIII,
+        COUNT(case when AreaId = 1 then 1 end) AL,
+        COUNT(case when ArchivesId != 0 then 1 end) Total
+        FROM ${tableName2} r LEFT JOIN
+        (SELECT archiveId,EnterTime,LeftTime,AreaId,NurseLevelId,IsLongOrShort FROM ${tableName1}) total
+        ON r.ArchivesId = total.archiveId WHERE ArchivesId != 0
+        <if test="startDate != null">
+            and ${param1} #{startDate}
+        </if>
+        <if test="endDate != null">
+            and ${param2} #{endDate}
+        </if>
+    </select>
+
+    <select id="doubleArchivesMap" resultMap="BeginningUnitMap" resultType="com.carerobot.cockpit.dto.OccupancyRateDto">
+        SELECT ${itemName} as items,
+        COUNT(case when IsLongOrShort = 1 then 1 end) LT,
+        COUNT(case when IsLongOrShort = 2 then 1 end) ST,
+        COUNT(case when IsLongOrShort = 3 then 1 end) Ttial,
+        COUNT(case when IsLongOrShort = 4 then 1 end) Guest,
+        COUNT(case when AreaId = 2 then 1 end) IL,
+        COUNT(case when NurseLevelId = 1 then 1 end) LEVELI,
+        COUNT(case when NurseLevelId = 2 then 1 end) LEVELII,
+        COUNT(case when NurseLevelId = 3 then 1 end) LEVELIII,
+        COUNT(case when AreaId = 1 then 1 end) AL,
+        COUNT(case when ArchivesId != 0 then 1 end) Total
+        FROM ${tableName2} r LEFT JOIN
+        (SELECT c.cohabitant_id archiveId,a.EnterTime,LeftTime,a.AreaId,NULL AS NurseLevelId,a.IsLongOrShort FROM ${tableName3} c JOIN ${tableName1} a WHERE c.archives_id = a.archiveId
+        UNION
+        SELECT archiveId,EnterTime,LeftTime,AreaId,NurseLevelId,IsLongOrShort FROM ${tableName1}) total
+        ON r.ArchivesId = total.archiveId WHERE ArchivesId != 0
+        <if test="startDate != null">
+            and ${param1} #{startDate}
+        </if>
+        <if test="endDate != null">
+            and ${param2} #{endDate}
+        </if>
+    </select>
+
+    <select id="singArchivesRate" resultMap="BeginningUnitMap" resultType="com.carerobot.cockpit.dto.OccupancyRateDto">
+        SELECT '单人入住率' as items,
+        COUNT(case when IsLongOrShort = 1 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 LT,
+        COUNT(case when IsLongOrShort = 2 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 ST,
+        COUNT(case when IsLongOrShort = 3 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 Ttial,
+        COUNT(case when IsLongOrShort = 4 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 Guest,
+        COUNT(case when AreaId = 2 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 IL,
+        COUNT(case when NurseLevelId = 1 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 LEVELI,
+        COUNT(case when NurseLevelId = 2 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 LEVELII,
+        COUNT(case when NurseLevelId = 3 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 LEVELIII,
+        COUNT(case when AreaId = 1 then 1 AND ArchivesId != 0 end)/COUNT(BuildNo)*100 AL,
+        COUNT(case when ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 Total
+        FROM ${tableName2} r LEFT JOIN
+        (SELECT archiveId,EnterTime,LeftTime,AreaId,NurseLevelId,IsLongOrShort FROM ${tableName1}) total
+        ON r.ArchivesId = total.archiveId;
+    </select>
+
+    <select id="doubleArchivesRate" resultMap="BeginningUnitMap" resultType="com.carerobot.cockpit.dto.OccupancyRateDto">
+        SELECT '双人入住率' as items,
+        COUNT(case when IsLongOrShort = 1 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 LT,
+        COUNT(case when IsLongOrShort = 2 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 ST,
+        COUNT(case when IsLongOrShort = 3 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 Ttial,
+        COUNT(case when IsLongOrShort = 4 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 Guest,
+        COUNT(case when AreaId = 2 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 IL,
+        COUNT(case when NurseLevelId = 1 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 LEVELI,
+        COUNT(case when NurseLevelId = 2 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 LEVELII,
+        COUNT(case when NurseLevelId = 3 AND ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 LEVELIII,
+        COUNT(case when AreaId = 1 then 1 AND ArchivesId != 0 end)/COUNT(BuildNo)*100 AL,
+        COUNT(case when ArchivesId != 0 then 1 end)/COUNT(BuildNo)*100 Total
+        FROM ${tableName2} r LEFT JOIN
+        (SELECT archiveId,a.EnterTime,LeftTime,a.AreaId,NULL AS NurseLevelId,a.IsLongOrShort FROM ${tableName3} c JOIN ${tableName1} a WHERE c.archives_id = a.archiveId
+        UNION
+        SELECT archiveId,EnterTime,LeftTime,AreaId,NurseLevelId,IsLongOrShort FROM ${tableName1}) total
+        ON r.ArchivesId = total.archiveId;
+    </select>
+</mapper>

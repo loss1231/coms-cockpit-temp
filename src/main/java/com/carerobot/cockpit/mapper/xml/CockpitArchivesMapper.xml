@@ -1,0 +1,684 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.carerobot.cockpit.mapper.CockpitArchivesMapper">
+    
+    <insert id="createOccupancyTable">
+         CREATE TABLE ${tableName} (
+          `item_name` varchar(50) NULL,
+          `lt` varchar(50) NULL,
+          `st` varchar(50) NULL,
+          `ttial` varchar(50) NULL,
+          `guest` varchar(50) NULL,
+          `il_total` varchar(50) NULL,
+          `level_l` varchar(50) NULL,
+          `level_ll` varchar(50) NULL,
+          `level_lll` varchar(50) NULL,
+          `level_Ⅳ` varchar(50) NULL,
+          `al_total` varchar(50) NULL,
+          `total` varchar(50) NULL,
+          `org_id` varchar(50) NULL
+        )
+    </insert>
+
+    <resultMap id="Occupancy" type="com.carerobot.cockpit.model.newOccupancyRate">
+        <result column="项目名称" property="item_Name"/>
+        <result column="长住 LT" property="longLive"/>
+        <result column="短住 ST" property="shortLive"/>
+        <result column="试住 Ttial" property="tryLive"/>
+        <result column="访客 Guest" property="guest"/>
+        <result column="IL Total" property="ILTotal"/>
+        <result column="一级护理 Level I" property="careLevel1"/>
+        <result column="二级护理 Level II" property="careLevel2"/>
+        <result column="三级护理 Level III" property="careLevel3"/>
+        <result column="四级护理 Level Ⅳ" property="careLevel4"/>
+        <result column="AL Total" property="ALTotal"/>
+        <result column="Total" property="total"/>
+        <result column="org_id" property="orgId"/>
+    </resultMap>
+
+    <select id="searchOccupancy" resultMap="Occupancy">
+        SELECT
+        'Beginning Unit' as '项目名称',
+        t1.lt  '长住 LT',
+        t1.st	'短住 ST',
+        t1.ttial '试住 Ttial',
+        t1.guest '访客 Guest',
+        t1.iltotal 'IL Total',
+        t1.level1 '一级护理 Level I',
+        t1.level2 '二级护理 Level II',
+        t1.level3 '三级护理 Level III',
+        t1.level4 '四级护理 Level Ⅳ',
+        t1.altotal+r.gcb 'AL Total',
+        t1.total+r.gcb Total,
+        ${orgId} as org_id
+        from
+        (SELECT
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) lt,
+        COUNT(case when IsLongOrShort = '短住' then 1 end) st,
+        COUNT(case when IsLongOrShort = '试住' then 1 end) ttial,
+        COUNT(case when IsLongOrShort = '访客' then 1 end) guest,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) iltotal,
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) level1,
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) level2,
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) level3,
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) level4,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) altotal,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住' and OrgId = #{orgId}
+        ) total where 1=1   AND EnterTime &lt;= #{startDATE} )t1,
+        (SELECT count(case when r.Id = a.Id then 1 end) gcb
+        from (SELECT Id from archives_info)a ,
+        (SELECT ArchivesId Id from room_bedinfo where NurseArea='1' and BedStatus='包床' and OrgId = #{orgId})r
+        )r
+
+
+        UNION ALL
+
+        SELECT 'GMI' as '项目名称',
+        COUNT(  case when v.IsLongOrShort = '长客' and Area != 'AL' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '长客' and Area != 'AL' and r.BedStatus = '包床'  then 2
+        end) '长住 LT',
+        COUNT(  case when v.IsLongOrShort = '短住' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '短住' and r.BedStatus = '包床' then 2
+        end) '短住 ST',
+        COUNT(  case when v.IsLongOrShort = '试住' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '试住' and r.BedStatus = '包床' then 2
+        end) '试住 Ttial',
+        COUNT(  case when v.IsLongOrShort = '访客' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '访客' and r.BedStatus = '包床' then 2
+        end) '访客 Guest',
+        COUNT(  case when v.Area = 'IL' and r.BedStatus != '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 1
+        when v.Area = 'IL' and r.BedStatus = '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 2
+        end) 'IL Total',
+        COUNT(  case when v.NurseLevel = '一级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '一级护理' and Area ='AL' and r.BedStatus = '包床'then 2
+        end) '一级护理 Level I',
+        COUNT(  case when v.NurseLevel = '二级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '二级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) '二级护理 Level II',
+        COUNT(  case when v.NurseLevel = '三级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '三级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) '三级护理 Level III',
+        COUNT(  case when v.NurseLevel = '四级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '四级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) '四级护理 Level Ⅳ',
+        COUNT(  case when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus != '包床' then 1
+        when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus = '包床' then 2
+        end) 'AL Total',
+        COUNT(  case when v.Area = 'IL' and r.BedStatus != '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 1
+        when v.Area = 'IL' and r.BedStatus = '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 2
+        end)+COUNT(  case when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus != '包床' then 1
+        when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus = '包床' then 2
+        end)   Total,
+        ${orgId} as org_id
+        FROM view_elder_detail v ,room_bedinfo r where v.Type = '主住' and v.OrgId = #{orgId} AND LiveDate &gt;= #{startDATE} AND LiveDate &lt;= #{endDATE} AND v.BedInfoBedNo = r.BedNo
+
+
+        UNION ALL
+
+        SELECT 'MO' as '项目名称',
+        <include refid="view_live_result"/>
+        FROM (
+        <include refid="view_elder_detail_unit"/> and OrgId = #{orgId}
+        ) total where 1=1 AND LeftTime &gt;= #{startDATE} AND LeftTime &lt;= #{endDATE}
+
+        UNION ALL
+
+        SELECT 'NMI' as '项目名称',
+        t1.l1-t2.l1 '长住 LT',
+        t1.l2-t2.l2 '短住 ST',
+        t1.l3-t2.l3 '试住 Ttial',
+        t1.l4-t2.l4 '访客 Guest',
+        t1.il-t2.il 'IL Total',
+        t1.n1-t2.n1 '一级护理 Level I',
+        t1.n2-t2.n2 '二级护理 Level II',
+        t1.n3-t2.n3 '三级护理 Level III',
+        t1.n4-t2.n4 '四级护理 Level Ⅳ',
+        t1.al-t2.al 'AL Total',
+        t1.il+t1.al-t2.il-t2.al Total,
+        ${orgId} as org_id
+        FROM
+        (
+        SELECT 'GMI' as '项目名称',
+        COUNT(  case when v.IsLongOrShort = '长客' and Area != 'AL' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '长客' and Area != 'AL' and r.BedStatus = '包床'  then 2
+        end) l1,
+        COUNT(  case when v.IsLongOrShort = '短住' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '短住' and r.BedStatus = '包床' then 2
+        end) l2,
+        COUNT(  case when v.IsLongOrShort = '试住' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '试住' and r.BedStatus = '包床' then 2
+        end) l3,
+        COUNT(  case when v.IsLongOrShort = '访客' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '访客' and r.BedStatus = '包床' then 2
+        end) l4,
+        COUNT(  case when v.Area = 'IL' and r.BedStatus != '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 1
+        when v.Area = 'IL' and r.BedStatus = '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 2
+        end) il,
+        COUNT(  case when v.NurseLevel = '一级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '一级护理' and Area ='AL' and r.BedStatus = '包床'then 2
+        end) n1,
+        COUNT(  case when v.NurseLevel = '二级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '二级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) n2,
+        COUNT(  case when v.NurseLevel = '三级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '三级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) n3,
+        COUNT(  case when v.NurseLevel = '四级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '四级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) n4,
+        COUNT(  case when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus != '包床' then 1
+        when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus = '包床' then 2
+        end) al
+        FROM view_elder_detail v ,room_bedinfo r where v.Type = '主住' and v.OrgId = ${orgId} AND LiveDate &gt;= #{startDATE} AND LiveDate &lt;= #{endDATE} AND v.BedInfoBedNo = r.BedNo
+        ) t1,
+        (
+        SELECT
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) l1,
+        COUNT(case when IsLongOrShort = '短住' then 1 end) l2,
+        COUNT(case when IsLongOrShort = '试住' then 1 end) l3,
+        COUNT(case when IsLongOrShort = '访客' then 1 end) l4,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) il,
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) n1,
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) n2,
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) n3,
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) n4,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) al,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        <include refid="view_elder_detail_unit"/> and OrgId = #{orgId}
+        ) total where 1=1 AND LeftTime &gt;= #{startDATE} AND LeftTime &lt;= #{endDATE}
+        ) t2
+
+        UNION ALL
+
+        SELECT 'Ending Units 单元数' as '项目名称',
+        t1.l1+t2.l1 '长住 LT',
+        t1.l2+t2.l2 '短住 ST',
+        t1.l3+t2.l3 '试住 Ttial',
+        t1.l4+t2.l4 '访客 Guest',
+        t1.il+t2.il 'IL Total',
+        t1.n1+t2.n1 '一级护理 Level I',
+        t1.n2+t2.n2 '二级护理 Level II',
+        t1.n3+t2.n3 '三级护理 Level III',
+        t1.n4+t2.n4 '四级护理 Level Ⅳ',
+        t1.al+t2.al 'AL Total',
+        t1.total+t2.total Total,
+        ${orgId} as org_id
+        FROM (
+        SELECT 'NMI' as '项目名称',
+        t1.l1-t2.l1  l1,
+        t1.l2-t2.l2  l2,
+        t1.l3-t2.l3  l3,
+        t1.l4-t2.l4  l4,
+        t1.il-t2.il  il,
+        t1.n1-t2.n1  n1,
+        t1.n2-t2.n2  n2,
+        t1.n3-t2.n3  n3,
+        t1.n4-t2.n4  n4,
+        t1.al-t2.al  al,
+        t1.il+t1.al-t2.il-t2.al Total
+        FROM
+        (
+        SELECT 'GMI' as '项目名称',
+        COUNT(  case when v.IsLongOrShort = '长客' and Area != 'AL' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '长客' and Area != 'AL' and r.BedStatus = '包床'  then 2
+        end) l1,
+        COUNT(  case when v.IsLongOrShort = '短住' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '短住' and r.BedStatus = '包床' then 2
+        end) l2,
+        COUNT(  case when v.IsLongOrShort = '试住' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '试住' and r.BedStatus = '包床' then 2
+        end) l3,
+        COUNT(  case when v.IsLongOrShort = '访客' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '访客' and r.BedStatus = '包床' then 2
+        end) l4,
+        COUNT(  case when v.Area = 'IL' and r.BedStatus != '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 1
+        when v.Area = 'IL' and r.BedStatus = '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 2
+        end) il,
+        COUNT(  case when v.NurseLevel = '一级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '一级护理' and Area ='AL' and r.BedStatus = '包床'then 2
+        end) n1,
+        COUNT(  case when v.NurseLevel = '二级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '二级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) n2,
+        COUNT(  case when v.NurseLevel = '三级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '三级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) n3,
+        COUNT(  case when v.NurseLevel = '四级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '四级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) n4,
+        COUNT(  case when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus != '包床' then 1
+        when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus = '包床' then 2
+        end) al
+        FROM view_elder_detail v ,room_bedinfo r where v.Type = '主住' and v.OrgId = ${orgId} AND LiveDate &gt;= #{startDATE} AND LiveDate &lt;= #{endDATE} AND v.BedInfoBedNo = r.BedNo
+        ) t1,
+        (
+        SELECT
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) l1,
+        COUNT(case when IsLongOrShort = '短住' then 1 end) l2,
+        COUNT(case when IsLongOrShort = '试住' then 1 end) l3,
+        COUNT(case when IsLongOrShort = '访客' then 1 end) l4,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) il,
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) n1,
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) n2,
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) n3,
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) n4,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) al,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        <include refid="view_elder_detail_unit"/> and OrgId = #{orgId}
+        ) total where 1=1 AND LeftTime &gt;= #{startDATE} AND LeftTime &lt;= #{endDATE}
+        ) t2
+        ) t1,
+        (SELECT
+        'Beginning Unit' as '项目名称',
+        t1.lt  l1,
+        t1.st	l2,
+        t1.ttial l3,
+        t1.guest l4,
+        t1.iltotal il,
+        t1.level1 n1,
+        t1.level2 n2,
+        t1.level3 n3,
+        t1.level4 n4,
+        t1.altotal+r.gcb al,
+        t1.total+r.gcb total,
+        ${orgId} as org_id
+        from
+        (SELECT
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) lt,
+        COUNT(case when IsLongOrShort = '短住' then 1 end) st,
+        COUNT(case when IsLongOrShort = '试住' then 1 end) ttial,
+        COUNT(case when IsLongOrShort = '访客' then 1 end) guest,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) iltotal,
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) level1,
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) level2,
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) level3,
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) level4,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) altotal,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住' and OrgId = #{orgId}
+        ) total where 1=1   AND EnterTime &lt;= #{startDATE} )t1,
+        (SELECT count(case when r.Id = a.Id then 1 end) gcb
+        from (SELECT Id from archives_info)a ,
+        (SELECT ArchivesId Id from room_bedinfo where NurseArea='1' and BedStatus='包床' and OrgId = #{orgId})r
+        )r)t2
+
+        UNION ALL
+
+        SELECT
+        'Residents 住户人数' as '项目名称',
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) '长住 LT',
+        COUNT(case when IsLongOrShort = '短住' then 1 end) '短住 ST',
+        COUNT(case when IsLongOrShort = '试住' then 1 end) '试住 Ttial',
+        COUNT(case when IsLongOrShort = '访客' then 1 end) '访客 Guest',
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) 'IL Total',
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) '一级护理 Level I',
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) '二级护理 Level II',
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) '三级护理 Level III',
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) '四级护理 Level Ⅳ',
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) 'AL Total',
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) Total,
+        ${orgId} as org_id
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE OrgId = #{orgId}
+        ) total where 1=1 and EnterTime &lt;= #{endDATE}
+
+
+        UNION ALL
+
+        SELECT 'Residents Day 住户天数' as 'itemName',
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) '长住 LT',
+        COUNT(case when IsLongOrShort = '短住' then 1 end) '短住 ST',
+        COUNT(case when IsLongOrShort = '试住' then 1 end) '试住 Ttial',
+        COUNT(case when IsLongOrShort = '访客' then 1 end) '访客 Guest',
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) 'IL Total',
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) '一级护理 Level I',
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) '二级护理 Level II',
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) '三级护理 Level III',
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) '四级护理 Level Ⅳ',
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) 'AL Total',
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) Total,
+        ${orgId} as org_id
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE OrgId = #{orgId}
+        ) total where 1=1 and EnterTime &lt;= #{endDATE}
+
+
+
+        UNION ALL
+
+        SELECT
+        '可入住单元数' as '项目名称',
+        COUNT(case when NurseArea = '2' then 1 end) '长住 LT',
+        COUNT(case when NurseArea = '2' then 1 end) '短住 ST',
+        COUNT(case when NurseArea = '2' then 1 end) '访客 Guest',
+        COUNT(case when NurseArea = '2' then 1 end) '试住 Ttial',
+        COUNT(case when NurseArea = '2' then 1 end) 'IL Total',
+        COUNT(case when NurseArea = '1' then 1 end) '一级护理 Level I',
+        COUNT(case when NurseArea = '1' then 1 end) '二级护理 Level II',
+        COUNT(case when NurseArea = '1' then 1 end) '三级护理 Level III',
+        COUNT(case when NurseArea = '1' then 1 end) '四级护理 Level Ⅳ',
+        COUNT(case when NurseArea = '1' then 1 end) 'AL Total',
+        COUNT(BedNo) Total,
+        ${orgId} as org_id
+        FROM room_bedinfo WHERE OrgId = #{orgId}
+
+
+        UNION ALL
+
+        SELECT
+        '单人入住率' as '项目名称',
+        total.IsLongOrShort1/rb.ILTotal*100 '长住 LT',
+        total.IsLongOrShort2/rb.ILTotal*100 '短住 ST',
+        total.IsLongOrShort3/rb.ILTotal*100 '试住 Ttial',
+        total.IsLongOrShort4/rb.ILTotal*100 '访客 Guest',
+        total.Area1/rb.ILTotal*100 'IL Total',
+        total.NurseLevel1/rb.ALTotal*100 '一级护理 Level I',
+        total.NurseLevel2/rb.ALTotal*100 '二级护理 Level II',
+        total.NurseLevel3/rb.ALTotal*100 '三级护理 Level III',
+        total.NurseLevel4/rb.ALTotal*100 '四级护理 Level Ⅳ',
+        total.Area2/rb.ALTotal*100 'AL Total',
+        total.Total/rb.total*100 Total,
+        ${orgId} as org_id
+        FROM
+        (SELECT
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) IsLongOrShort1,
+        COUNT(case when IsLongOrShort = '短住' then 1 end) IsLongOrShort2,
+        COUNT(case when IsLongOrShort = '试住' then 1 end) IsLongOrShort3,
+        COUNT(case when IsLongOrShort = '访客' then 1 end) IsLongOrShort4,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)  Area1,
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) NurseLevel1,
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) NurseLevel2,
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) NurseLevel3,
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) NurseLevel4,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) Area2,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) Total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住' and  RegisterStatus != '请假'
+        and OrgId = #{orgId})total)total
+        ,(
+        select
+        COUNT(case when NurseArea = '2' then 1 end) 'ILTotal',
+        COUNT(case when NurseArea = '1' then 1 end) 'ALTotal',
+        COUNT(BedNo) 'total'
+        FROM room_bedinfo WHERE OrgId = #{orgId}
+        ) rb
+
+        UNION ALL
+
+        select
+        '双人入住率' as '项目名称',
+        (t1.lt/t3.lt-1)*100 '长住 LT',
+        (t1.st/t3.st-1)*100 '短住 ST',
+        (t1.ttial/t3.ttial-1)*100 '试住 Ttial',
+        (t1.guest/t3.guest-1)*100 '访客 Guest',
+        (t1.iltotal/t3.iltotal-1)*100 'IL Total',
+        (t1.level1/t3.level1-1)*100 '一级护理 Level I',
+        (t1.level2/t3.level2-1)*100 '二级护理 Level II',
+        (t1.level3/t3.level3-1)*100 '三级护理 Level III',
+        (t1.level4/t3.level4-1)*100 '四级护理 Level Ⅳ',
+        (t1.altotal/t3.altotal-1)*100 'AL Total',
+        (t1.Total/t3.Total-1)*100 Total,
+        ${orgId} as org_id
+        from
+        (
+        select
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) 'lt',
+        COUNT(case when IsLongOrShort = '短住' then 1 end) 'st',
+        COUNT(case when IsLongOrShort = '试住' then 1 end) 'ttial',
+        COUNT(case when IsLongOrShort = '访客' then 1 end) 'guest',
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) 'iltotal',
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) 'level1',
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) 'level2',
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) 'level3',
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) 'level4',
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) 'altotal',
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) Total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE OrgId = #{orgId}
+        ) total where 1=1 and EnterTime &lt;= #{endDATE}) t1,
+        (SELECT
+        'Ending Units 单元数' as '项目名称',
+        t1.l1+t2.l1 lt,
+        t1.l2+t2.l2 st,
+        t1.l3+t2.l3 ttial,
+        t1.l4+t2.l4 guest,
+        t1.il+t2.il iltotal,
+        t1.n1+t2.n1 level1,
+        t1.n2+t2.n2 level2,
+        t1.n3+t2.n3 level3,
+        t1.n4+t2.n4 level4,
+        t1.al+t2.al altotal,
+        t1.total+t2.total Total
+        FROM (
+        SELECT 'NMI' as '项目名称',
+        t1.l1-t2.l1  l1,
+        t1.l2-t2.l2  l2,
+        t1.l3-t2.l3  l3,
+        t1.l4-t2.l4  l4,
+        t1.il-t2.il  il,
+        t1.n1-t2.n1  n1,
+        t1.n2-t2.n2  n2,
+        t1.n3-t2.n3  n3,
+        t1.n4-t2.n4  n4,
+        t1.al-t2.al  al,
+        t1.il+t1.al-t2.il-t2.al Total
+        FROM
+        (
+        SELECT 'GMI' as '项目名称',
+        COUNT(  case when v.IsLongOrShort = '长客' and Area != 'AL' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '长客' and Area != 'AL' and r.BedStatus = '包床'  then 2
+        end) l1,
+        COUNT(  case when v.IsLongOrShort = '短住' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '短住' and r.BedStatus = '包床' then 2
+        end) l2,
+        COUNT(  case when v.IsLongOrShort = '试住' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '试住' and r.BedStatus = '包床' then 2
+        end) l3,
+        COUNT(  case when v.IsLongOrShort = '访客' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '访客' and r.BedStatus = '包床' then 2
+        end) l4,
+        COUNT(  case when v.Area = 'IL' and r.BedStatus != '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 1
+        when v.Area = 'IL' and r.BedStatus = '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 2
+        end) il,
+        COUNT(  case when v.NurseLevel = '一级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '一级护理' and Area ='AL' and r.BedStatus = '包床'then 2
+        end) n1,
+        COUNT(  case when v.NurseLevel = '二级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '二级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) n2,
+        COUNT(  case when v.NurseLevel = '三级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '三级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) n3,
+        COUNT(  case when v.NurseLevel = '四级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '四级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) n4,
+        COUNT(  case when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus != '包床' then 1
+        when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus = '包床' then 2
+        end) al
+        FROM view_elder_detail v ,room_bedinfo r where v.Type = '主住' and v.OrgId = ${orgId} AND LiveDate &gt;= #{startDATE} AND LiveDate &lt;= #{endDATE} AND v.BedInfoBedNo = r.BedNo
+        ) t1,
+        (
+        SELECT
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) l1,
+        COUNT(case when IsLongOrShort = '短住' then 1 end) l2,
+        COUNT(case when IsLongOrShort = '试住' then 1 end) l3,
+        COUNT(case when IsLongOrShort = '访客' then 1 end) l4,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) il,
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) n1,
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) n2,
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) n3,
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) n4,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) al,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        <include refid="view_elder_detail_unit"/> and OrgId = #{orgId}
+        ) total where 1=1 AND LeftTime &gt;= #{startDATE} AND LeftTime &lt;= #{endDATE}
+        ) t2
+        ) t1,
+        (SELECT
+        'Beginning Unit' as '项目名称',
+        t1.lt  l1,
+        t1.st	l2,
+        t1.ttial l3,
+        t1.guest l4,
+        t1.iltotal il,
+        t1.level1 n1,
+        t1.level2 n2,
+        t1.level3 n3,
+        t1.level4 n4,
+        t1.altotal+r.gcb al,
+        t1.total+r.gcb total,
+        ${orgId} as org_id
+        from
+        (SELECT
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) lt,
+        COUNT(case when IsLongOrShort = '短住' then 1 end) st,
+        COUNT(case when IsLongOrShort = '试住' then 1 end) ttial,
+        COUNT(case when IsLongOrShort = '访客' then 1 end) guest,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) iltotal,
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) level1,
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) level2,
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) level3,
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) level4,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) altotal,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住' and OrgId = ${orgId}
+        ) total where 1=1   AND EnterTime &lt;= #{startDATE} )t1,
+        (SELECT count(case when r.Id = a.Id then 1 end) gcb
+        from (SELECT Id from archives_info)a ,
+        (SELECT ArchivesId Id from room_bedinfo where NurseArea='1' and BedStatus='包床' and OrgId = #{orgId})r
+        )r)t2)t3
+    </select>
+
+    <insert id="insertOccupancy">
+        insert ${tableName} (`item_name`,`lt`,`st`,`ttial`,`guest`,`il_total`,`level_l`,`level_ll`,`level_lll`,`level_Ⅳ`,`al_total`,`total`,`org_id`) values
+        <foreach collection="list" item="item" index="index" separator=",">
+            (#{item.item_Name},#{item.longLive},#{item.shortLive},#{item.tryLive},#{item.guest},#{item.ILTotal},#{item.careLevel1},#{item.careLevel2},#{item.careLevel3},#{item.careLevel4},#{item.ALTotal},#{item.total},#{item.orgId})
+        </foreach>
+    </insert>
+
+
+    <insert id="createElderDetailTable">
+         CREATE TABLE ${tableName}  (
+          `RegisterStatus` varchar(50) NULL,
+          `Type` varchar(50) NULL,
+          `Area` varchar(50) NULL,
+          `BedInfoBedNo` varchar(50) NULL,
+          `BedStatus` varchar(50) NULL,
+          `Name` varchar(50) NULL,
+          `Birthday` datetime NULL,
+          `CredentialsNo` varchar(100) NULL,
+          `Gender` varchar(10) NULL,
+          `EmergencyPerson` varchar(50) NULL,
+          `CellPhoneNumber` varchar(50) NULL,
+          `OccupationStr` varchar(50) NULL,
+          `IsLongOrShort` varchar(50) NULL,
+          `OldAge` varchar(50) NULL,
+          `Age` varchar(50) NULL,
+          `PhysicalCondition` varchar(1000) NULL,
+          `NurseLevel` varchar(50) NULL,
+          `OrgId` int(10) NULL,
+          `LiveDate` datetime NULL,
+          `leaveTime` datetime NULL,
+          `CreatedUserName` varchar(50) NULL,
+          `Remark` varchar(1000) NULL
+        );
+    </insert>
+
+    <insert id="insertElderDetail">
+        insert ${tableName} (`RegisterStatus`,`Type`,`Area`,`BedInfoBedNo`,`BedStatus`,`Name`,`Birthday`,`CredentialsNo`
+        ,`Gender`,`EmergencyPerson`,`CellPhoneNumber`,`OccupationStr`,`IsLongOrShort`,`OldAge`,`Age`,`PhysicalCondition`
+        ,`NurseLevel`,`OrgId`,`LiveDate`,`leaveTime`,`CreatedUserName`,`Remark`)
+        values
+        <foreach collection="list" item="item" index="index" separator=",">
+            (#{item.RegisterStatus},#{item.Type},#{item.Area},#{item.BedInfoBedNo},#{item.BedStatus},#{item.Name},#{item.Birthday},#{item.CredentialsNo},
+            #{item.Gender},#{item.EmergencyPerson},#{item.CellPhoneNumber},#{item.OccupationStr},#{item.IsLongOrShort},#{item.OldAge},
+            #{item.Age},#{item.PhysicalCondition},#{item.NurseLevel},#{item.OrgId},#{item.LiveDate},#{item.leaveTime},#{item.CreatedUserName},#{item.Remark})
+        </foreach>
+    </insert>
+
+    <resultMap id="elderDetail" type="com.carerobot.cockpit.model.ElderDetail">
+        <result property="RegisterStatus" column="RegisterStatus"/>
+        <result property="Type" column="Type"/>
+        <result property="Area" column="Area"/>
+        <result property="BedInfoBedNo" column="BedInfoBedNo"/>
+        <result property="BedStatus" column="BedStatus"/>
+        <result property="Name" column="Name"/>
+        <result property="Birthday" column="Birthday"/>
+        <result property="CredentialsNo" column="CredentialsNo"/>
+        <result property="Gender" column="Gender"/>
+        <result property="EmergencyPerson" column="EmergencyPerson"/>
+        <result property="CellPhoneNumber" column="CellPhoneNumber"/>
+        <result property="OccupationStr" column="OccupationStr"/>
+        <result property="IsLongOrShort" column="IsLongOrShort"/>
+        <result property="OldAge" column="OldAge"/>
+        <result property="Age" column="Age"/>
+        <result property="PhysicalCondition" column="PhysicalCondition"/>
+        <result property="NurseLevel" column="NurseLevel"/>
+        <result property="OrgId" column="OrgId"/>
+        <result property="LiveDate" column="LiveDate"/>
+        <result property="leaveTime" column="leaveTime"/>
+        <result property="CreatedUserName" column="CreatedUserName"/>
+        <result property="Remark" column="Remark"/>
+    </resultMap>
+
+    <select id="searchElderDetail" resultMap="elderDetail">
+        select
+        v.RegisterStatus RegisterStatus,
+        v.Type Type,
+        v.Area Area,
+        v.BedInfoBedNo BedInfoBedNo,
+        r.BedStatus BedStatus,
+        v.Name Name,
+        v.Birthday Birthday,
+        v.CredentialsNo CredentialsNo,
+        v.Gender Gender,
+        v.EmergencyPerson EmergencyPerson,
+        v.CellPhoneNumber CellPhoneNumber,
+        v.OccupationStr OccupationStr,
+        v.IsLongOrShort IsLongOrShort,
+        v.OldAge OldAge,
+        v.Age Age,
+        v.PhysicalCondition PhysicalCondition,
+        v.NurseLevel NurseLevel,
+        v.OrgId OrgId,
+        v.LiveDate LiveDate,
+        v.leaveTime leaveTime,
+        v.CreatedUserName CreatedUserName,
+        v.Remark Remark
+        from view_elder_detail v,room_bedinfo r where v.BedInfoBedNo = r.BedNo and v.OrgId = r.OrgId
+    </select>
+
+    <sql id="view_elder_detail_unit">
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+    </sql>
+
+    <sql id="view_live_result">
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) '长住 LT',
+        COUNT(case when IsLongOrShort = '短住' then 1 end) '短住 ST',
+        COUNT(case when IsLongOrShort = '试住' then 1 end) '试住 Ttial',
+        COUNT(case when IsLongOrShort = '访客' then 1 end) '访客 Guest',
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) 'IL Total',
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) '一级护理 Level I',
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) '二级护理 Level II',
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) '三级护理 Level III',
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) '四级护理 Level Ⅳ',
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) 'AL Total',
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) Total,
+        ${orgId} as org_id
+    </sql>
+</mapper>

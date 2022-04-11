@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.carerobot.cockpit.mapper.ContractCohabitantMapper">
+
+    <update id="createNewCohabitantTable" parameterType="String">
+        CREATE TABLE ${tableName} (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        archives_id varchar(50) NOT NULL,
+        cohabitant_id varchar(50) NOT NULL,
+        PRIMARY KEY (id))
+    </update>
+
+    <insert id="batchInsertTempArchive" parameterType="java.util.List">
+        insert into ${tableName} (archives_id,cohabitant_id)
+        values
+        <foreach collection="list" item="CohabitantDto" index="index" separator=",">
+            (
+            #{CohabitantDto.ArchivesId,jdbcType=INTEGER},
+            #{CohabitantDto.ArchiveInfoId,jdbcType=INTEGER}
+            )
+        </foreach>
+    </insert>
+
+    <insert id="insertCohabitants" >
+        INSERT INTO contract_cohabitant(id, ArchivesId, LiveName,ArchivesName,ArchiveInfoId,Nature,
+        Gender,Age,CredentialsNo,RegisterStatusId,IsDeleted,CreatedDate,LiveDate,StartNurseId,ContractId)
+        SELECT
+        #{cohabitant.id},
+        #{cohabitant.archivesId},
+        #{cohabitant.liveName},
+        #{cohabitant.archivesName},
+        #{cohabitant.archiveInfoId},
+        #{cohabitant.nature},
+        #{cohabitant.gender},
+        #{cohabitant.age},
+        #{cohabitant.credentialsNo},
+        #{cohabitant.registerStatusId},
+        #{cohabitant.isDeleted},
+        #{cohabitant.createdDate},
+        #{cohabitant.liveDate},
+        #{cohabitant.startNurseId},
+        #{cohabitant.contractId}
+        FROM DUAL WHERE NOT EXISTS(SELECT * FROM contract_cohabitant WHERE id = #{cohabitant.id,jdbcType=INTEGER})
+    </insert>
+</mapper>

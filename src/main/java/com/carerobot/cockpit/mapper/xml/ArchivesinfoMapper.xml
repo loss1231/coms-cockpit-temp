@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.carerobot.cockpit.mapper.ArchivesinfoMapper">
+
+    <resultMap id="selectArchivesLeave" type="com.carerobot.cockpit.model.Archivesinfo" autoMapping="true">
+        <id column="Id" property="Id"></id>
+        <collection property="leaveApplications" ofType="com.carerobot.cockpit.model.LeaveApplication" autoMapping="true">
+            <id column="lId" property="id"></id>
+        </collection>
+    </resultMap>
+
+    <select id="selectLeaveForTable" resultMap="selectArchivesLeave">
+        SELECT
+            a.*,
+            l.Id as lid,
+            l.startDate,
+            l.endDate,
+            l.leaveTypeId,
+            l.explanation
+        FROM
+            archives_info a
+        join
+            leave_application l
+        on
+            a.Id = l.applicant_id
+        <if test="areaId != null">
+            and AreaId = #{areaId}
+        </if>
+        <if test="isLongOrShort != null">
+            and IsLongOrShort = #{isLongOrShort}
+        </if>
+        and
+            l.createTime &gt;= #{startDate}
+        and
+            l.createTime &lt;= #{endDate}
+        <if test="leaveTypeId != null">
+            and l.leaveTypeId = #{leaveTypeId}
+        </if>
+
+    </select>
+
+    <update id="createNewTempArchiveTable" parameterType="String">
+    CREATE TABLE ${tableName} (
+                                id bigint(20) NOT NULL AUTO_INCREMENT,
+                                archiveId int,
+                                archiveName varchar(50) NOT NULL,
+                                OccupationId int,
+                                Age int,
+                                RegisterStatus varchar(50),
+                                Area varchar(50),
+                                Birthday date,
+                                Gender int,
+                                CredentialsNo varchar(50),
+                                BedInfoBedNo varchar(50),
+                                EmergencyContact varchar(50),
+                                OccupationStr varchar(50),
+                                PhysicalCondition varchar(500),
+                                CreationTime date,
+                                IsLongOrShort int,
+                                AreaId int,
+                                EnterTime date,
+                                LeftTime date,
+                                NurseLevelId int,
+                                UNIQUE  INDEX  idx_archive_id(archiveId ASC),
+                                PRIMARY KEY (id))
+    </update>
+
+    <insert id="batchInsertTempArchive" parameterType="java.util.List">
+        insert into ${tableName} (
+        archiveId,archiveName,RegisterStatus,OccupationId,Area, BedInfoBedNo,Gender,Birthday,CredentialsNo,EmergencyContact,OccupationStr,Age,
+        PhysicalCondition,CreationTime,IsLongOrShort,AreaId,EnterTime,LeftTime,NurseLevelId)
+        values
+        <foreach collection="list" item="archivesJsonDtos" index="index" separator=",">
+            (
+            #{archivesJsonDtos.Id,jdbcType=VARCHAR},
+            #{archivesJsonDtos.Name,jdbcType=VARCHAR},
+            #{archivesJsonDtos.RegisterStatus,jdbcType=VARCHAR},
+            #{archivesJsonDtos.OccupationId,jdbcType=INTEGER},
+            #{archivesJsonDtos.Area,jdbcType=VARCHAR},
+            #{archivesJsonDtos.BedInfoBedNo,jdbcType=VARCHAR},
+            #{archivesJsonDtos.Gender,jdbcType=INTEGER},
+            #{archivesJsonDtos.Birthday,jdbcType=DATE},
+            #{archivesJsonDtos.CredentialsNo,jdbcType=VARCHAR},
+            #{archivesJsonDtos.EmergencyContact,jdbcType=VARCHAR},
+            #{archivesJsonDtos.OccupationStr,jdbcType=VARCHAR},
+            #{archivesJsonDtos.Age,jdbcType=INTEGER},
+            #{archivesJsonDtos.PhysicalCondition,jdbcType=VARCHAR},
+            #{archivesJsonDtos.CreationTime,jdbcType=DATE},
+            #{archivesJsonDtos.IsLongOrShort,jdbcType=INTEGER},
+            #{archivesJsonDtos.AreaId,jdbcType=INTEGER},
+            #{archivesJsonDtos.EnterTime,jdbcType=DATE},
+            #{archivesJsonDtos.LeftTime,jdbcType=DATE},
+            #{archivesJsonDtos.NurseLevelId,jdbcType=INTEGER}
+            )
+        </foreach>
+    </insert>
+
+    <update id="dropTable">
+        DROP TABLE IF EXISTS ${tableName}
+    </update>
+
+    <resultMap id="GenderForElderMap" type="com.carerobot.cockpit.dto.ElderStatisticsDto" autoMapping="true">
+        <result column="items" property="ItemName"/>
+        <result column="Gender" property="ValueDes"/>
+        <result column="IL" property="IL"/>
+        <result column="AL" property="AL"/>
+        <result column="total" property="Total"/>
+    </resultMap>
+
+    <select id="getGenderForElder" resultMap="GenderForElderMap" resultType="com.carerobot.cockpit.dto.ElderStatisticsDto">
+   SELECT '性别 Gender' as items,if(Gender=1,"男","女") Gender,COUNT(case when total.AreaId = 1 then 1 end) AL,COUNT(case when total.AreaId = 2 then 1 end) IL,COUNT(case when total.AreaId = 1 then 1 end)+COUNT(case when total.AreaId = 2 then 1 end) total  FROM (
+   SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,OccupationStr,IFNULL(AreaId,1) AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1} where ${tableName1}.archiveId in (SELECT c.cohabitant_id FROM ${tableName2} c JOIN ${tableName1} a WHERE c.archives_id = a.archiveId AND a.AreaId = 1)
+   UNION
+   SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,OccupationStr,IFNULL(AreaId,2) AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1} where ${tableName1}.archiveId in (SELECT c.cohabitant_id FROM ${tableName2} c JOIN ${tableName1} a WHERE c.archives_id = a.archiveId AND a.AreaId = 2)
+   UNION
+   SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,OccupationStr,AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1}) total WHERE total.Gender is NOT NULL
+        <if test="startDate != null">
+            and LeftTime &gt; #{startDate}
+        </if>
+        <if test="endDate != null">
+            and EnterTime &lt; #{endDate}
+        </if>
+        <if test="liveType != null">
+            and IsLongOrShort = #{liveType}
+        </if>
+    GROUP BY Gender;
+   </select>
+
+    <!--<select id="getGenderForElder" resultMap="GenderForElderMap" resultType="com.carerobot.cockpit.dto.ElderStatisticsDto">-->
+        <!--SELECT '性别 Gender' as items,if(Gender=1,"男","女") Gender,COUNT(case when total.AreaId = 1 then 1 end) AL,COUNT(case when total.AreaId = 2 then 1 end) IL,COUNT(case when total.AreaId = 1 then 1 end)+COUNT(case when total.AreaId = 2 then 1 end) total  FROM (-->
+        <!--SELECT t.ArchivesId,DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(a.Birthday)), '%Y')+0 age,Gender,OccupationStr,t.AreaId,t.EnterTime,t.LeftTime,t.IsLongOrShort FROM archives_info a JOIN (SELECT c.ArchivesId,a.AreaId,a.EnterTime,case when a.LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM contract_cohabitant c JOIN archives_info a WHERE c.ArchivesId = a.Id AND a.AreaId IS NOT NULL AND a.AreaId &lt;&gt; 0) t ON t.ArchivesId = a.Id-->
+        <!--UNION-->
+        <!--SELECT Id ArchivesId,DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,OccupationStr,AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM archives_info WHERE AreaId IS NOT NULL AND AreaId &lt;&gt; 0-->
+        <!--) total WHERE total.Gender is NOT NULL GROUP BY Gender-->
+    <!--</select>-->
+
+    <resultMap id="OccupationForElderMap" type="com.carerobot.cockpit.dto.ElderStatisticsDto" autoMapping="true">
+        <result column="items" property="ItemName"/>
+        <result column="OccupationStr" property="ValueDes"/>
+        <result column="IL" property="IL"/>
+        <result column="AL" property="AL"/>
+        <result column="total" property="Total"/>
+    </resultMap>
+    <select id="occupationForElderMap" resultMap="OccupationForElderMap" resultType="com.carerobot.cockpit.dto.ElderStatisticsDto">
+  SELECT '职业 Occupation' as items,OccupationStr,COUNT(case when total.AreaId = 1 then 1 end) AL,COUNT(case when total.AreaId = 2 then 1 end) IL,COUNT(case when total.AreaId = 1 then 1 end)+COUNT(case when total.AreaId = 2 then 1 end) total  FROM (
+  SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,OccupationStr,IFNULL(AreaId,1) AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1} where ${tableName1}.archiveId in (SELECT c.cohabitant_id FROM ${tableName2} c JOIN ${tableName1} a WHERE c.archives_id = a.archiveId AND a.AreaId = 1)
+  UNION
+  SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,OccupationStr,IFNULL(AreaId,2) AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1} where ${tableName1}.archiveId in (SELECT c.cohabitant_id FROM ${tableName2} c JOIN ${tableName1} a WHERE c.archives_id = a.archiveId AND a.AreaId = 2)
+  UNION
+  SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,OccupationStr,AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1}) total WHERE total.OccupationStr is NOT NULL
+        <if test="startDate != null">
+            and LeftTime &gt; #{startDate}
+        </if>
+        <if test="endDate != null">
+            and EnterTime &lt; #{endDate}
+        </if>
+        <if test="liveType != null">
+            and IsLongOrShort = #{liveType}
+        </if>
+  GROUP BY OccupationStr;
+   </select>
+
+    <resultMap id="DiseaseForElderMap" type="com.carerobot.cockpit.dto.ElderStatisticsDto" autoMapping="true">
+        <result column="items" property="ItemName"/>
+        <result column="PhysicalCondition" property="ValueDes"/>
+        <result column="IL" property="IL"/>
+        <result column="AL" property="AL"/>
+        <result column="total" property="Total"/>
+    </resultMap>
+    <select id="diseaseForElderMap" resultMap="DiseaseForElderMap" resultType="com.carerobot.cockpit.dto.ElderStatisticsDto">
+    SELECT '疾病 Disease' as items,PhysicalCondition,COUNT(case when total.AreaId = 1 then 1 end) AL,COUNT(case when total.AreaId = 2 then 1 end) IL,COUNT(case when total.AreaId = 1 then 1 end)+COUNT(case when total.AreaId = 2 then 1 end) total  FROM (
+    SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,PhysicalCondition,IFNULL(AreaId,1) AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1} where ${tableName1}.archiveId in (SELECT c.cohabitant_id FROM ${tableName2} c JOIN ${tableName1} a WHERE c.archives_id = a.archiveId AND a.AreaId = 1)
+    UNION
+    SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,PhysicalCondition,IFNULL(AreaId,2) AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1} where ${tableName1}.archiveId in (SELECT c.cohabitant_id FROM ${tableName2} c JOIN ${tableName1} a WHERE c.archives_id = a.archiveId AND a.AreaId = 2)
+    UNION
+    SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,PhysicalCondition,AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1}) total WHERE total.PhysicalCondition is NOT NULL and total.PhysicalCondition != ''
+        <if test="startDate != null">
+            and LeftTime &gt; #{startDate}
+        </if>
+        <if test="endDate != null">
+            and EnterTime &lt; #{endDate}
+        </if>
+        <if test="liveType != null">
+            and IsLongOrShort = #{liveType}
+        </if>
+    GROUP BY PhysicalCondition;
+   </select>
+
+    <resultMap id="AgeForElderMap" type="com.carerobot.cockpit.dto.ElderStatisticsDto" autoMapping="true">
+        <result column="items" property="ItemName"/>
+        <result column="nld" property="ValueDes"/>
+        <result column="IL" property="IL"/>
+        <result column="AL" property="AL"/>
+        <result column="total" property="Total"/>
+    </resultMap>
+    <select id="ageForElderMap" resultMap="AgeForElderMap" resultType="com.carerobot.cockpit.dto.ElderStatisticsDto">
+        SELECT '年龄 Age' as items,nld,COUNT(case when total.AreaId = 1 then 1 end) AL,COUNT(case when total.AreaId = 2 then 1 end) IL,COUNT(case when total.AreaId = 1 then 1 end)+COUNT(case when total.AreaId = 2 then 1 end) total FROM (SELECT CASE
+
+        WHEN age &lt; 60
+        THEN '60岁以下'
+        WHEN age &gt;= 60
+        AND age &lt; 70 THEN '60-69岁'
+        WHEN age &gt;= 70
+        AND Age &lt; 80 THEN '70-79岁'
+        WHEN age &gt;= 80
+        AND Age &lt; 90 THEN '80-89岁'
+        WHEN age &gt;= 90
+        AND Age &lt; 100 THEN '90-99岁'
+        END nld,AreaId,LeftTime,EnterTime
+        FROM
+        (SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,PhysicalCondition,IFNULL(AreaId,1) AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1} where ${tableName1}.archiveId in (SELECT c.cohabitant_id FROM ${tableName2} c JOIN ${tableName1} a WHERE c.archives_id = a.archiveId AND a.AreaId = 1)
+        UNION
+        SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,PhysicalCondition,IFNULL(AreaId,2) AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1} where ${tableName1}.archiveId in (SELECT c.cohabitant_id FROM ${tableName2} c JOIN ${tableName1} a WHERE c.archives_id = a.archiveId AND a.AreaId = 2)
+        UNION
+        SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,PhysicalCondition,AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1}) total) total WHERE total.nld IS NOT NULL
+        <if test="startDate != null">
+            and LeftTime &gt; #{startDate}
+        </if>
+        <if test="endDate != null">
+            and EnterTime &lt; #{endDate}
+        </if>
+        <if test="liveType != null">
+            and IsLongOrShort = #{liveType}
+        </if>
+        GROUP BY nld;
+   </select>
+
+    <resultMap id="CurAgeForElderMap" type="com.carerobot.cockpit.dto.ElderStatisticsDto" autoMapping="true">
+        <result column="items" property="ItemName"/>
+        <result column="IL" property="IL"/>
+        <result column="AL" property="AL"/>
+        <result column="total" property="Total"/>
+    </resultMap>
+    <select id="curAgeForElderMap" resultMap="CurAgeForElderMap" resultType="com.carerobot.cockpit.dto.ElderStatisticsDto">
+     SELECT '当前平均年龄 Current Average Age' as items,AVG(case when total.AreaId = 1 then age end) AL,AVG(case when total.AreaId = 2 then age end) IL, avg(age) total  FROM (
+    SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,PhysicalCondition,IFNULL(AreaId,1) AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1} where ${tableName1}.archiveId in (SELECT c.cohabitant_id FROM ${tableName2} c JOIN ${tableName1} a WHERE c.archives_id = a.archiveId AND a.AreaId = 1)
+    UNION
+    SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,PhysicalCondition,IFNULL(AreaId,2) AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1} where ${tableName1}.archiveId in (SELECT c.cohabitant_id FROM ${tableName2} c JOIN ${tableName1} a WHERE c.archives_id = a.archiveId AND a.AreaId = 2)
+    UNION
+    SELECT DATE_FORMAT(FROM_DAYS(TO_DAYS(NOW())-TO_DAYS(Birthday)), '%Y')+0 age,Gender,PhysicalCondition,AreaId,EnterTime,case when LeftTime IS NULL then DATE_SUB(curdate(),INTERVAL -1000 DAY) end LeftTime,IsLongOrShort FROM ${tableName1}) total WHERE age IS NOT NULL
+        <if test="startDate != null">
+            and LeftTime &gt; #{startDate}
+        </if>
+        <if test="endDate != null">
+            and EnterTime &lt; #{endDate}
+        </if>
+        <if test="liveType != null">
+            and IsLongOrShort = #{liveType}
+        </if>;
+   </select>
+
+    <select id="GetElderDetails" resultType="com.carerobot.cockpit.dto.ElderDetailReportDto">
+        select
+        *
+        from elder_detail_snapshot_${endSnapsShot}
+        where 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+
+        <if test="types != null and types != '' ">
+            <choose>
+                <when test="types == '长客' or types == '短住' or types == '试住' or types == '访客' ">
+                    AND IsLongOrShort=#{types}
+                </when>
+                <when test="types == '一级护理' or types == '二级护理' or types == '三级护理' or types == '四级护理' ">
+                    AND NurseLevel = #{types}
+                </when>
+                <when test="types == 'IL' or types == 'AL'">
+                    AND Area = #{types}
+                </when>
+                <when test="types == 'Total'">
+                    AND 1=1
+                </when>
+            </choose>
+        </if>
+
+        <if test="itemName != null and itemName != '' ">
+            <choose>
+                <when test="itemName == 'Beginning Unit 期初单元数'">
+                    AND LiveDate &lt;= #{dateStart}
+                </when>
+                <when test="itemName == '        GMI 搬入数'">
+                    AND LiveDate >= #{dateStart} AND leaveTime >= #{dateEnd}
+                </when>
+                <when test="itemName == '        MO  搬出数'">
+                    AND LiveDate >= #{dateStart} AND leaveTime &lt;= #{dateEnd}
+                </when>
+                <when test="itemName == '        NMI 净搬入数'">
+                    AND LiveDate >= #{dateStart} AND leaveTime >= #{dateEnd}
+                </when>
+                <when test="itemName == 'Ending Units 单元数'">
+                    AND leaveTime >= #{dateEnd}
+                </when>
+                <when test="itemName == ‘Residents 住户人数’ or itemName == 'Residents Day 住户天数' or itemName == 'Saleable Room 可入住单元数'">
+                    AND 1=1
+                </when>
+            </choose>
+        </if>
+
+        <if test="type != null and type != ''">
+            AND Type=#{type}
+        </if>
+
+        <if test="nameOrRoomNo !=null and nameOrRoomNo != ''">
+            And (Name like concat('%',#{nameOrRoomNo},'%') or (BedInfoBedNo like concat('%',#{nameOrRoomNo},'%')))
+        </if>
+        limit #{currcount},#{pageSize}
+
+    </select>
+    <select id="GetElderDetailsCounts" resultType="java.lang.Integer">
+        select
+        count(*)
+        from elder_detail_snapshot_${endSnapsShot}
+        where 1=1
+
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+
+        <if test="types != null and types != '' ">
+            <choose>
+                <when test="types == '长客' or types == '短住' or types == '试住' or types == '访客' ">
+                    AND IsLongOrShort=#{types}
+                </when>
+                <when test="types == '一级护理' or types == '二级护理' or types == '三级护理' or types == '四级护理' ">
+                    AND NurseLevel = #{types}
+                </when>
+                <when test="types == 'IL' or types == 'AL'">
+                    AND Area = #{types}
+                </when>
+                <when test="types == 'Total'">
+                    AND 1=1
+                </when>
+            </choose>
+        </if>
+
+        <if test="itemName != null and itemName != '' ">
+            <choose>
+                <when test="itemName == 'Beginning Unit 期初单元数'">
+                    AND LiveDate &lt;= #{dateStart}
+                </when>
+                <when test="itemName == '        GMI 搬入数'">
+                    AND LiveDate >= #{dateStart} AND leaveTime >= #{dateEnd}
+                </when>
+                <when test="itemName == '        MO  搬出数'">
+                    AND LiveDate >= #{dateStart} AND leaveTime &lt;= #{dateEnd}
+                </when>
+                <when test="itemName == '        NMI 净搬入数'">
+                    AND LiveDate >= #{dateStart} AND leaveTime >= #{dateEnd}
+                </when>
+                <when test="itemName == 'Ending Units 单元数'">
+                    AND leaveTime >= #{dateEnd}
+                </when>
+                <when test="itemName == ‘Residents 住户人数’ or itemName == 'Residents Day 住户天数' or itemName == 'Saleable Room 可入住单元数'">
+                    AND 1=1
+                </when>
+            </choose>
+        </if>
+
+        <if test="type != null and type != '' ">
+            AND Type=#{type}
+        </if>
+
+        <if test="nameOrRoomNo !=null and nameOrRoomNo != ''">
+            And (Name like concat('%',#{nameOrRoomNo},'%') or (BedInfoBedNo like concat('%',#{nameOrRoomNo},'%')))
+        </if>
+    </select>
+</mapper>

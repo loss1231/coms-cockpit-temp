@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.carerobot.cockpit.mapper.VElderRecordMapper">
+    <resultMap id="BaseResultMap" type="com.carerobot.cockpit.dto.ElderStatisticsDto">
+        <constructor>
+            <idArg column="id" javaType="int" jdbcType="INTEGER" />
+            <arg column="ItemName" javaType="String" jdbcType="VARCHAR" />
+            <arg column="Value" javaType="String" jdbcType="VARCHAR" />
+            <arg column="IL" javaType="int" jdbcType="INTEGER" />
+            <arg column="AL" javaType="int" jdbcType="INTEGER" />
+            <arg column="Total" javaType="int" jdbcType="INTEGER" />
+            <arg column="Percentage" javaType="java.math.BigDecimal" jdbcType="DECIMAL" />
+        </constructor>
+    </resultMap>
+    <sql id="Base_Column_List">
+    ItemName, Value, IL, AL, Total, Percentage
+  </sql>
+
+    <select id="selectElderStatistics" parameterType="String" resultMap="BaseResultMap">
+        select 'Gender' ItemName,a.*,round(a.Total/b.total,4) Percentage from (
+select IFNULL(gender,'gender Total')  as Value,SUM(if(area='IL',1,0)) AS IL,SUM(if(area='AL',1,0)) AS AL,count(1) AS Total
+from v_elder_record where #{strWhere,jdbcType=VARCHAR} group by gender WITH ROLLUP
+) a,(select count(1) total from v_elder_record where #{strWhere,jdbcType=VARCHAR} ) b
+    </select>
+</mapper>

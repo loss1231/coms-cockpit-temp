@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.carerobot.cockpit.mapper.LeaveApplicationMapper">
+
+<!--    <sql id="sql_phrase">-->
+<!--        id,applicant_id,startDate,endDate,applicant,accompany,auditor,leaveTypeId,creatorUserName,createTime,lastUpdateTime,deletedOrNot,status,nurseName,explanation,notes-->
+<!--    </sql>-->
+
+<!--    <select id="getDataByMonth" resultType="com.carerobot.cockpit.model.LeaveApplication">-->
+<!--        select <include refid="sql_phrase"/> from leave_application-->
+<!--        where createTime-->
+<!--    </select>-->
+</mapper>

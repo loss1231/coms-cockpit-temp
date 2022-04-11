@@ -1,0 +1,483 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.carerobot.cockpit.mapper.ContractInfoMapper">
+
+    <insert id="insertContract" >
+        INSERT INTO contract_info(Id, ArchivesId, BedInfoId,NurseLevelId,NurseLevelName,`Name`,
+        `Number`,StartDate,EndDate,IsTaste,Days,IsSettle,CreatedUserId,CreatedUserName,SigningDate,
+        SigningName,SigningPhone,Guarantor,GuarantorPhone,Remark,ParentContractId,ContractStatus,
+        IsPreferential,PreferentialStr,MainContractId,ContractCategory,HasRenew,ExpectLiveTime,PackageBedType
+        ,PackageBedPrice,Discount,AddDate,UpdateDate,CreatorUserName,CreationTime,CreatorUserId,LastModifierUserName,
+        LastModificationTime,LastModifierUserId,IsDeleted,OrgId,ContractLiveId,TType,IsLongOrShort,ArchivesInfoName,Mnemonics
+        ,NurseArea,BedInfoBedNo,BedInfoRoomNo,CredentialsId,CredentialsNo,Gender,SalesUserName,SaleHB,NursingPrecautions,
+        ChangeReason,GuarantorAddress,GuarantorFax,GuarantorEmail,GuarantorAddressee,AgentCredentialsNo,SigningRelation,Successor,
+        SuccessorCredentialsNo,SuccessorPhone,SuccessorRelation,BedArea)
+        SELECT
+        #{contract.Id},#{contract.ArchivesId},#{contract.BedInfoId},#{contract.NurseLevelId},#{contract.NurseLevelName},#{contract.Name},
+        #{contract.Number},#{contract.StartDate},#{contract.EndDate},#{contract.IsTaste}, #{contract.Days},#{contract.IsSettle},
+        #{contract.CreatedUserId},#{contract.CreatedUserName},#{contract.SigningDate},#{contract.SigningName},#{contract.SigningPhone},#{contract.Guarantor},
+        #{contract.GuarantorPhone},#{contract.Remark},#{contract.ParentContractId},#{contract.ContractStatus}, #{contract.IsPreferential},#{contract.PreferentialStr},
+        #{contract.MainContractId},#{contract.ContractCategory},#{contract.HasRenew},#{contract.ExpectLiveTime},#{contract.PackageBedType},#{contract.PackageBedPrice},
+        #{contract.Discount},#{contract.AddDate},#{contract.UpdateDate},#{contract.CreatorUserName}, #{contract.CreationTime},#{contract.CreatorUserId},
+        #{contract.LastModifierUserName},#{contract.LastModificationTime},#{contract.LastModifierUserId},#{contract.IsDeleted},#{contract.OrgId},#{contract.ContractLiveId},
+        #{contract.TType},#{contract.IsLongOrShort},#{contract.ArchivesInfoName},#{contract.Mnemonics}, #{contract.NurseArea},#{contract.BedInfoBedNo},
+        #{contract.CredentialsId},#{contract.CredentialsNo},#{contract.Gender},#{contract.SalesUserName},#{contract.SaleHB},#{contract.NursingPrecautions},
+        #{contract.ChangeReason},#{contract.GuarantorAddress},#{contract.GuarantorFax},#{contract.GuarantorEmail}, #{contract.GuarantorAddressee},#{contract.AgentCredentialsNo},
+        #{contract.SigningRelation},#{contract.Successor},#{contract.SuccessorCredentialsNo},#{contract.SuccessorPhone}, #{contract.SuccessorRelation},#{contract.BedArea}
+        FROM DUAL WHERE NOT EXISTS(SELECT * FROM contract_info WHERE Id = #{contract.Id,jdbcType=INTEGER})
+    </insert>
+
+    <select id="selectBegin" resultMap="Occupancy">
+        select
+        'Beginning Unit 期初单元数' as item_Name,
+        <include refid="occupancy_snapshot"/>
+        from occupancy_snapshot_${startSnapsShot} where item_name = "Beginning Unit"
+        <if test='list != null and list.size() > 0'>
+            And org_id in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+
+    </select>
+
+
+
+    <select id="selectGMI" resultMap="Occupancy">
+        SELECT
+        '        GMI 搬入数' as 'item_Name',
+       CAST( COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) AS SIGNED) 'lt',
+       CAST( COUNT(case when IsLongOrShort = '短住' then 1 end) AS SIGNED) 'st',
+       CAST( COUNT(case when IsLongOrShort = '试住' then 1 end) AS SIGNED) 'ttial',
+       CAST( COUNT(case when IsLongOrShort = '访客' then 1 end) AS SIGNED) 'guest',
+       CAST( COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) AS SIGNED) 'il_total',
+       CAST( COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) AS SIGNED) 'level_l',
+       CAST( COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) AS SIGNED) 'level_ll',
+       CAST( COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) AS SIGNED) 'level_lll',
+       CAST( COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) AS SIGNED) 'level_Ⅳ',
+       CAST( COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) AS SIGNED) 'al_total',
+       CAST( COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) AS SIGNED) 'total'
+        FROM (
+
+        SELECT   Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 AND EnterTime >= #{startDATE} AND EnterTime &lt;= #{endDate}
+    </select>
+
+
+
+    <select id="selectMO" resultMap="Occupancy">
+        SELECT '        MO  搬出数' as 'item_Name',
+
+       CAST(COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) AS SIGNED) 'lt',
+       CAST(COUNT(case when IsLongOrShort = '短住' then 1 end) AS SIGNED) 'st',
+       CAST(COUNT(case when IsLongOrShort = '试住' then 1 end) AS SIGNED) 'ttial',
+       CAST(COUNT(case when IsLongOrShort = '访客' then 1 end) AS SIGNED) 'guest',
+       CAST(COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) AS SIGNED) 'il_total',
+       CAST(COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) AS SIGNED) 'level_l',
+       CAST(COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) AS SIGNED) 'level_ll',
+       CAST(COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) AS SIGNED) 'level_lll',
+       CAST(COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) AS SIGNED) 'level_Ⅳ',
+       CAST(COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) AS SIGNED) 'al_total',
+       CAST(COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) AS SIGNED) 'total'
+
+        FROM (
+
+        SELECT   Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 AND LeftTime >= #{startDATE} AND LeftTime &lt;= #{endDate}
+    </select>
+
+
+
+    <select id="selectNMI" resultMap="Occupancy">
+        SELECT '        NMI 净搬入数' as 'item_Name',
+        CAST( t1.l1-t2.l1 AS SIGNED)'lt',
+        CAST(t1.l2-t2.l2 AS SIGNED)'st',
+        CAST(t1.l3-t2.l3 AS SIGNED)'ttial',
+        CAST(t1.l4-t2.l4 AS SIGNED)'guest',
+        CAST(t1.il-t2.il AS SIGNED)'il_total',
+        CAST(t1.n1-t2.n1 AS SIGNED)'level_l',
+        CAST(t1.n2-t2.n2 AS SIGNED)'level_ll',
+        CAST(t1.n3-t2.n3 AS SIGNED)'level_lll',
+        CAST(t1.n4-t2.n4 AS SIGNED)'level_Ⅳ',
+        CAST(t1.al-t2.al AS SIGNED)'al_total',
+        CAST(t1.total-t2.total AS SIGNED)'total'
+        FROM
+        (
+        SELECT
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL'  then 1 end) l1,
+        COUNT(case when IsLongOrShort = '短住' then 1 end) l2,
+        COUNT(case when IsLongOrShort = '试住' then 1 end) l3,
+        COUNT(case when IsLongOrShort = '访客' then 1 end) l4,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) il,
+        COUNT(case when NurseLevel = '一级护理'  and Area ='AL' then 1 end) n1,
+        COUNT(case when NurseLevel = '二级护理'  and Area ='AL' then 1 end) n2,
+        COUNT(case when NurseLevel = '三级护理'  and Area ='AL' then 1 end) n3,
+        COUNT(case when NurseLevel = '四级护理'  and Area ='AL' then 1 end) n4,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) al,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        SELECT   Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1
+        ) t1,
+        (
+        SELECT
+        COUNT(case when IsLongOrShort = '长客'  and Area != 'AL' then 1 end) l1,
+        COUNT(case when IsLongOrShort = '短住' then 1 end) l2,
+        COUNT(case when IsLongOrShort = '试住' then 1 end) l3,
+        COUNT(case when IsLongOrShort = '访客' then 1 end) l4,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) il,
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) n1,
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) n2,
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) n3,
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) n4,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) al,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        SELECT   Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1
+        ) t2
+    </select>
+
+    <select id="selectEnd" resultMap="Occupancy">
+        select
+        'Ending Units 单元数' as item_Name,
+        <include refid="occupancy_snapshot"/>
+        from occupancy_snapshot_${endSnapsShot} where item_name = "Ending Units 单元数"
+        <if test='list != null and list.size() > 0'>
+            And org_id in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+
+    <select id="selectResidents" resultMap="Occupancy">
+        select
+        'Residents 住户人数' as item_Name,
+        <include refid="occupancy_snapshot"/>
+        from occupancy_snapshot_${endSnapsShot} where item_name = "Residents 住户人数"
+        <if test='list != null and list.size() > 0'>
+            And org_id in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+
+    </select>
+
+
+    <select id="selectResidentsDays" resultMap="Occupancy">
+        select
+        'ResidentsDays 住户天数' as item_Name,
+        <include refid="occupancy_snapshot"/>
+        from occupancy_snapshot_${endSnapsShot} where item_name = "Residents 住户人数"
+        <if test='list != null and list.size() > 0'>
+            And org_id in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="selectSaleableRoom" resultMap="Occupancy">
+        Select
+        COUNT(case when NurseArea = '2' then 1 end) 'il_total',
+        COUNT(case when NurseArea = '1' then 1 end) 'al_total',
+        COUNT(BedNo) 'total'
+        FROM room_bedinfo WHERE 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+
+
+    <select id="PhysicalOccupancy" resultMap="Occupancy">
+        select
+        '单人入住率' as 'item_Name',
+        CONVERT(t1.lt/t2.il_total*100,DECIMAL(10,2)) 'lt',
+        CONVERT(t1.st/t2.il_total*100,DECIMAL(10,2)) 'st',
+        CONVERT(t1.ttial/t2.il_total*100,DECIMAL(10,2)) 'ttial',
+        CONVERT(t1.guest/t2.il_total*100,DECIMAL(10,2)) 'guest',
+        CONVERT(t1.il_total/t2.il_total*100,DECIMAL(10,2)) 'il_total',
+        CONVERT(t1.level_l/t2.al_total*100,DECIMAL(10,2)) 'level_l',
+        CONVERT(t1.level_ll/t2.al_total*100,DECIMAL(10,2)) 'level_ll',
+        CONVERT(t1.level_lll/t2.al_total*100,DECIMAL(10,2)) 'level_lll',
+        CONVERT(t1.level_llll/t2.al_total*100,DECIMAL(10,2)) 'level_Ⅳ',
+        CONVERT(t1.al_total/t2.al_total*100,DECIMAL(10,2)) 'al_total',
+        CONVERT(t1.total/t2.total*100,DECIMAL(10,2)) 'total'
+        from
+        (select
+        sum(lt) lt,
+        sum(st) st,
+        sum(ttial) ttial,
+        sum(guest)  guest,
+        sum(il_total)  il_total,
+        sum(level_l)  level_l,
+        sum(level_ll)  level_ll,
+        sum(level_lll)  level_lll,
+        sum(level_Ⅳ)  level_llll,
+        sum(al_total)  al_total,
+        sum(total)  total
+        from occupancy_snapshot_${endSnapsShot} where item_name = "Ending Units 单元数"
+        <if test='list != null and list.size() > 0'>
+            And org_id in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>)t1,
+        (
+        Select
+        COUNT(case when NurseArea = '2' then 1 end) il_total,
+        COUNT(case when NurseArea = '1' then 1 end) al_total,
+        COUNT(BedNo) total
+        FROM room_bedinfo WHERE 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        )t2
+    </select>
+
+
+
+    <select id="DoubleOccupancy" resultMap="Occupancy">
+        select
+        '双人入住率' as 'item_Name',
+        CONVERT((t1.lt/t3.lt-1)*100,DECIMAL(10,2)) 'lt',
+        CONVERT((t1.st/t3.st-1)*100,DECIMAL(10,2)) 'st',
+        CONVERT((t1.ttial/t3.ttial-1)*100,DECIMAL(10,2)) 'ttial',
+        CONVERT((t1.guest/t3.guest-1)*100,DECIMAL(10,2)) 'guest',
+        CONVERT((t1.iltotal/t3.iltotal-1)*100 ,DECIMAL(10,2))'il_total',
+        CONVERT((t1.level1/t3.level1-1)*100,DECIMAL(10,2)) 'level_l',
+        CONVERT((t1.level2/t3.level2-1)*100,DECIMAL(10,2)) 'level_ll',
+        CONVERT((t1.level3/t3.level3-1)*100,DECIMAL(10,2)) 'level_lll',
+        CONVERT((t1.level4/t3.level4-1)*100,DECIMAL(10,2)) 'level_Ⅳ',
+        CONVERT((t1.altotal/t3.altotal-1)*100,DECIMAL(10,2)) 'al_total',
+        CONVERT((t1.Total/t3.Total-1)*100,DECIMAL(10,2)) 'total'
+        from
+        (
+        select
+        'Residents 住户人数' as item_Name,
+        CAST(sum(lt) AS SIGNED) lt,
+        CAST(sum(st) AS SIGNED) st,
+        CAST(sum(ttial) AS SIGNED) ttial,
+        CAST(sum(guest) AS SIGNED) guest,
+        CAST(sum(il_total) AS SIGNED) iltotal,
+        CAST(sum(level_l) AS SIGNED) level1,
+        CAST(sum(level_ll) AS SIGNED) level2,
+        CAST(sum(level_lll) AS SIGNED) level3,
+        CAST(sum(level_Ⅳ) AS SIGNED) level4,
+        CAST(sum(al_total) AS SIGNED) altotal,
+        CAST(sum(total) AS SIGNED) Total
+        from occupancy_snapshot_${endSnapsShot} where item_name = "Residents 住户人数"
+        <if test='list != null and list.size() > 0'>
+            And org_id in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>) t1,
+        (SELECT
+        'Ending Units 单元数' as '项目名称',
+        t1.l1+t2.l1 lt,
+        t1.l2+t2.l2 st,
+        t1.l3+t2.l3 ttial,
+        t1.l4+t2.l4 guest,
+        t1.il+t2.il iltotal,
+        t1.n1+t2.n1 level1,
+        t1.n2+t2.n2 level2,
+        t1.n3+t2.n3 level3,
+        t1.n4+t2.n4 level4,
+        t1.al+t2.al altotal,
+        t1.total+t2.total Total
+        FROM (
+        SELECT 'NMI' as '项目名称',
+        t1.l1-t2.l1  l1,
+        t1.l2-t2.l2  l2,
+        t1.l3-t2.l3  l3,
+        t1.l4-t2.l4  l4,
+        t1.il-t2.il  il,
+        t1.n1-t2.n1  n1,
+        t1.n2-t2.n2  n2,
+        t1.n3-t2.n3  n3,
+        t1.n4-t2.n4  n4,
+        t1.al-t2.al  al,
+        t1.il+t1.al-t2.il-t2.al Total
+        FROM
+        (
+        SELECT 'GMI' as '项目名称',
+        COUNT(  case when v.IsLongOrShort = '长客' and Area != 'AL' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '长客' and Area != 'AL' and r.BedStatus = '包床'  then 2
+        end) l1,
+        COUNT(  case when v.IsLongOrShort = '短住' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '短住' and r.BedStatus = '包床' then 2
+        end) l2,
+        COUNT(  case when v.IsLongOrShort = '试住' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '试住' and r.BedStatus = '包床' then 2
+        end) l3,
+        COUNT(  case when v.IsLongOrShort = '访客' and r.BedStatus != '包床' then 1
+        when v.IsLongOrShort = '访客' and r.BedStatus = '包床' then 2
+        end) l4,
+        COUNT(  case when v.Area = 'IL' and r.BedStatus != '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 1
+        when v.Area = 'IL' and r.BedStatus = '包床' or (v.IsLongOrShort = '短住' and v.Area = 'AL')or (v.IsLongOrShort = '试住' and v.Area = 'AL')or (v.IsLongOrShort = '访客' and v.Area = 'AL')then 2
+        end) il,
+        COUNT(  case when v.NurseLevel = '一级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '一级护理' and Area ='AL' and r.BedStatus = '包床'then 2
+        end) n1,
+        COUNT(  case when v.NurseLevel = '二级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '二级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) n2,
+        COUNT(  case when v.NurseLevel = '三级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '三级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) n3,
+        COUNT(  case when v.NurseLevel = '四级护理' and Area ='AL' and r.BedStatus != '包床'then 1
+        when v.NurseLevel = '四级护理' and Area ='AL' and r.BedStatus = '包床' then 2
+        end) n4,
+        COUNT(  case when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus != '包床' then 1
+        when v.Area = 'AL' and v.IsLongOrShort != '短住' and v.IsLongOrShort != '试住' and v.IsLongOrShort != '访客' and r.BedStatus = '包床' then 2
+        end) al
+        FROM view_elder_detail v ,room_bedinfo r where v.Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And v.OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+         AND LiveDate &gt;= #{startDATE} AND LiveDate &lt;= #{endDate} AND v.BedInfoBedNo = r.BedNo
+        ) t1,
+        (
+        SELECT
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) l1,
+        COUNT(case when IsLongOrShort = '短住' then 1 end) l2,
+        COUNT(case when IsLongOrShort = '试住' then 1 end) l3,
+        COUNT(case when IsLongOrShort = '访客' then 1 end) l4,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) il,
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) n1,
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) n2,
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) n3,
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) n4,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) al,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住' and 1=1
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1 AND LeftTime &gt;= #{startDATE} AND LeftTime &lt;= #{endDate}
+        ) t2
+        ) t1,
+        (SELECT
+        'Beginning Unit' as '项目名称',
+        t1.lt  l1,
+        t1.st	l2,
+        t1.ttial l3,
+        t1.guest l4,
+        t1.iltotal il,
+        t1.level1 n1,
+        t1.level2 n2,
+        t1.level3 n3,
+        t1.level4 n4,
+        t1.altotal+r.gcb al,
+        t1.total+r.gcb total
+        from
+        (SELECT
+        COUNT(case when IsLongOrShort = '长客' and Area != 'AL' then 1 end) lt,
+        COUNT(case when IsLongOrShort = '短住' then 1 end) st,
+        COUNT(case when IsLongOrShort = '试住' then 1 end) ttial,
+        COUNT(case when IsLongOrShort = '访客' then 1 end) guest,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end) iltotal,
+        COUNT(case when NurseLevel = '一级护理' and Area ='AL' then 1 end) level1,
+        COUNT(case when NurseLevel = '二级护理' and Area ='AL' then 1 end) level2,
+        COUNT(case when NurseLevel = '三级护理' and Area ='AL' then 1 end) level3,
+        COUNT(case when NurseLevel = '四级护理' and Area ='AL' then 1 end) level4,
+        COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) altotal,
+        COUNT(case when Area = 'IL' or (IsLongOrShort = '短住' and Area = 'AL')or (IsLongOrShort = '试住' and Area = 'AL')or (IsLongOrShort = '访客' and Area = 'AL')then 1 end)+COUNT(case when Area = 'AL' and IsLongOrShort != '短住' and IsLongOrShort != '试住' and IsLongOrShort != '访客' then 1 end) total
+        FROM (
+        SELECT  Area, IsLongOrShort,LiveDate EnterTime,leaveTime LeftTime, NurseLevel FROM
+        view_elder_detail WHERE Type = '主住'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>
+        ) total where 1=1   AND EnterTime &lt;= #{startDATE} )t1,
+        (SELECT count(case when r.Id = a.Id then 1 end) gcb
+        from (SELECT Id from archives_info)a ,
+        (SELECT ArchivesId Id from room_bedinfo where NurseArea='1' and BedStatus='包床'
+        <if test='list != null and list.size() > 0'>
+            And OrgId in
+            <foreach collection="list" index="index" item="item" open="(" separator="," close=")" >
+                #{item}
+            </foreach>
+        </if>)r
+        )r)t2)t3
+    </select>
+
+    <resultMap id="Occupancy" type="com.carerobot.cockpit.dto.newOccupancyRateDto">
+        <result column="item_Name" property="item_Name"/>
+        <result column="lt" property="lt"/>
+        <result column="st" property="st"/>
+        <result column="ttial" property="ttial"/>
+        <result column="guest" property="guest"/>
+        <result column="il_total" property="il_total"/>
+        <result column="level_l" property="level_l"/>
+        <result column="level_ll" property="level_ll"/>
+        <result column="level_lll" property="level_lll"/>
+        <result column="level_Ⅳ" property="level_Ⅳ"/>
+        <result column="al_total" property="al_total"/>
+        <result column="total" property="total"/>
+    </resultMap>
+
+    <sql id="occupancy_snapshot">
+                    CAST(sum(lt) AS SIGNED) lt,
+					CAST(sum(st) AS SIGNED) st,
+					CAST(sum(ttial) AS SIGNED) ttial,
+					CAST(sum(guest) AS SIGNED) guest,
+					CAST(sum(il_total) AS SIGNED) il_total,
+					CAST(sum(level_l) AS SIGNED) level_l,
+					CAST(sum(level_ll) AS SIGNED) level_ll,
+					CAST(sum(level_lll) AS SIGNED) level_lll,
+					CAST(sum(level_Ⅳ) AS SIGNED) level_Ⅳ,
+					CAST(sum(al_total) AS SIGNED) al_total,
+					CAST(sum(total) AS SIGNED) total
+    </sql>
+</mapper>
